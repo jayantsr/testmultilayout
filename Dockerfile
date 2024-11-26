@@ -1,19 +1,18 @@
-# Use a lightweight Node.js image
-FROM node:16-alpine
+# Stage 0 - Build Frontend Assets
+FROM node:16.17-alpine as build
 
-# Set working directory
 WORKDIR /app
+COPY package*.json ./
+RUN npm install --force
+COPY . .
+RUN npm run build
 
-# Copy package.json and install dependencies
-COPY package.json package-lock.json ./
-RUN npm install
+# Stage 1 - Serve Frontend Assets
+FROM fholzer/nginx-brotli:v1.12.2
 
-# Copy build folder
-COPY build ./build
+WORKDIR /etc/nginx
+ADD nginx.conf /etc/nginx/nginx.conf
 
-# Install `serve` to serve static files
-RUN npm global add serve
-
-# Expose the port and define the command to run the app
-EXPOSE 8080
-CMD ["serve", "-s", "build", "-l", "8080"]
+COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
